@@ -1,0 +1,41 @@
+name: Onboard App
+
+env:
+  TARGET_IP: 192.168.1.12
+  HOST_PORT: 8200
+  BAO_APP_DIR: /home/runner/apps/${{ github.event.repository.name }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: App name used for the kv path, policy and approle
+        required: true
+        type: string
+      github_repo:
+        description: Target repo as owner/name (defaults to <owner>/<app_name>)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  onboard:
+    runs-on: [self-hosted]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch OpenBao CA certificate
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new -i /home/runner/.ssh/deploy_key runner@${{ env.TARGET_IP }} \
+            "cat '${{ env.BAO_APP_DIR }}/tls/bao.crt'" > "$RUNNER_TEMP/bao.crt"
+
+      - name: Onboard
+        env:
+          BAO_ADDR: https://${{ env.TARGET_IP }}:${{ env.HOST_PORT }}
+          BAO_TOKEN: ${{ secrets.BAO_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+          APP: ${{ inputs.app_name }}
+          REPO: ${{ inputs.github_repo || format('{0}/{1}', github.repository_owner, inputs.app_name) }}
+        run: BAO_CACERT="$RUNNER_TEMP/bao.crt" bash scripts/onboard-app.sh "$APP" "$REPO"
