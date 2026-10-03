@@ -1,0 +1,46 @@
+name: Build and Deploy
+
+env:
+  TARGET_IP: 192.168.1.12
+  APP_NAME: ${{ github.event.repository.name }}
+  HOST_PORT: 8200
+  BAO_VERSION: 2.6.1
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: [self-hosted]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull OpenBao image on runner
+        run: docker pull --platform linux/arm64 openbao/openbao:${{ env.BAO_VERSION }}
+
+      - name: Deploy to target Pi
+        env:
+          APP_DIR: /home/runner/apps/${{ env.APP_NAME }}
+          SSH: ssh -o StrictHostKeyChecking=accept-new -i /home/runner/.ssh/deploy_key runner@${{ env.TARGET_IP }}
+        run: |
+          IMAGE="openbao:${{ env.BAO_VERSION }}"
+          docker tag openbao/openbao:${{ env.BAO_VERSION }} "$IMAGE"
+          docker save "$IMAGE" | $SSH docker load
+
+          $SSH "mkdir -p '$APP_DIR/config' '$APP_DIR/tls' '$APP_DIR/secrets'"
+          $SSH "cat > '$APP_DIR/docker-compose.yml'" < docker-compose.yml
+          $SSH "cat > '$APP_DIR/config/openbao.hcl'" < config/openbao.hcl
+
+          $SSH "test -f '$APP_DIR/tls/bao.crt' || openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+            -keyout '$APP_DIR/tls/bao.key' -out '$APP_DIR/tls/bao.crt' \
+            -subj '/CN=${{ env.TARGET_IP }}' \
+            -addext 'subjectAltName=IP:${{ env.TARGET_IP }},IP:127.0.0.1'"
+          $SSH "chmod 644 '$APP_DIR/tls/bao.key' '$APP_DIR/tls/bao.crt'"
+
+          $SSH "test -f '$APP_DIR/secrets/unseal.key' || openssl rand -out '$APP_DIR/secrets/unseal.key' 32"
+          $SSH "chmod 644 '$APP_DIR/secrets/unseal.key'"
+
+          $SSH "cd '$APP_DIR' && IMAGE='$IMAGE' APP_NAME='${{ env.APP_NAME }}' HOST_PORT='${{ env.HOST_PORT }}' TARGET_IP='${{ env.TARGET_IP }}' docker compose up -d"

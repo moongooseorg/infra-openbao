@@ -1,0 +1,6 @@
+tls/
+secrets/
+*.key
+*.crt
+bao-init.json
+.env

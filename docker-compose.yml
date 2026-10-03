@@ -1,0 +1,28 @@
+services:
+  openbao:
+    container_name: ${APP_NAME:?APP_NAME must be set}
+    image: ${IMAGE:?IMAGE must be set}
+    restart: unless-stopped
+    pull_policy: missing
+    command: ["server", "-config=/openbao/config/openbao.hcl"]
+    cap_add:
+      - IPC_LOCK
+    environment:
+      BAO_API_ADDR: https://${TARGET_IP:?TARGET_IP must be set}:${HOST_PORT:?HOST_PORT must be set}
+      BAO_CLUSTER_ADDR: https://${TARGET_IP}:8201
+    ports:
+      - "${HOST_PORT}:8200"
+    volumes:
+      - ./config:/openbao/config:ro
+      - ./tls:/openbao/tls:ro
+      - ./secrets:/openbao/secrets:ro
+      - data:/openbao/file
+    healthcheck:
+      test: ["CMD-SHELL", "bao status -address=https://127.0.0.1:8200 -tls-skip-verify >/dev/null 2>&1; [ $$? -ne 1 ]"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  data:
