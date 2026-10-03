@@ -1,7 +1,10 @@
 # docker-config
 
-### Initial Setup
+### Installation Setup
 Just perform a github build and deploy action
+
+### Configuration setup
+1. Create a new raft.  Set the recovery keys to 1 and 1.
 
 ### how to setup a new approle
 ## Create the secret path
