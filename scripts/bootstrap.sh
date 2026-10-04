@@ -28,12 +28,23 @@ if [[ "$initialized" == "false" ]]; then
 
   echo "Initialising OpenBao"
   init=$(api -X PUT "$BAO_ADDR/v1/sys/init" -d '{"recovery_shares":1,"recovery_threshold":1}')
-  BAO_TOKEN=$(jq -er .root_token <<<"$init")
-  recovery_key=$(jq -er '.recovery_keys_b64[0]' <<<"$init")
-  [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::add-mask::$BAO_TOKEN" && echo "::add-mask::$recovery_key"
+  BAO_TOKEN=$(jq -r '.root_token // empty' <<<"$init")
+  recovery_key=$(jq -r '(.recovery_keys_base64 // .recovery_keys // [])[0] // empty' <<<"$init")
+  [[ -n "${GITHUB_ACTIONS:-}" && -n "$BAO_TOKEN" ]] && echo "::add-mask::$BAO_TOKEN"
+  [[ -n "${GITHUB_ACTIONS:-}" && -n "$recovery_key" ]] && echo "::add-mask::$recovery_key"
 
-  echo "Storing BAO_TOKEN and BAO_RECOVERY_KEY as $ORG secrets"
+  if [[ -z "$BAO_TOKEN" ]]; then
+    echo "init response had no root token; fields returned: $(jq -c 'keys' <<<"$init")" >&2
+    exit 1
+  fi
+  echo "Storing BAO_TOKEN as $ORG secret"
   printf '%s' "$BAO_TOKEN" | gh secret set BAO_TOKEN --org "$ORG" --repos "$REPO"
+
+  if [[ -z "$recovery_key" ]]; then
+    echo "init response had no recovery key; fields returned: $(jq -c 'keys' <<<"$init")" >&2
+    exit 1
+  fi
+  echo "Storing BAO_RECOVERY_KEY as $ORG secret"
   printf '%s' "$recovery_key" | gh secret set BAO_RECOVERY_KEY --org "$ORG" --repos "$REPO"
 elif [[ "$initialized" == "true" ]]; then
   echo "OpenBao already initialised"
