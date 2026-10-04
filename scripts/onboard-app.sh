@@ -6,6 +6,7 @@ REPO="${2:?usage: onboard-app.sh <app-name> <owner/repo>}"
 : "${BAO_ADDR:?BAO_ADDR must be set}"
 : "${BAO_TOKEN:?BAO_TOKEN must be set}"
 : "${BAO_CACERT:?BAO_CACERT must be set}"
+KV_MOUNT="${KV_MOUNT:-kv}"
 : "${GH_TOKEN:?GH_TOKEN must be set}"
 
 [[ "$APP" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "invalid app name: $APP" >&2; exit 1; }
@@ -14,20 +15,20 @@ bao() {
   curl -sS --fail-with-body --cacert "$BAO_CACERT" -H "X-Vault-Token: $BAO_TOKEN" "$@"
 }
 
-status=$(curl -sS -o /dev/null -w '%{http_code}' --cacert "$BAO_CACERT" -H "X-Vault-Token: $BAO_TOKEN" "$BAO_ADDR/v1/kv/metadata/$APP")
+status=$(curl -sS -o /dev/null -w '%{http_code}' --cacert "$BAO_CACERT" -H "X-Vault-Token: $BAO_TOKEN" "$BAO_ADDR/v1/$KV_MOUNT/metadata/$APP")
 if [[ "$status" == "404" ]]; then
-  echo "Creating kv/$APP"
-  bao -X POST "$BAO_ADDR/v1/kv/data/$APP" \
+  echo "Creating $KV_MOUNT/$APP"
+  bao -X POST "$BAO_ADDR/v1/$KV_MOUNT/data/$APP" \
     -d '{"options":{"cas":0},"data":{"placeholder":"replace-me"}}' >/dev/null
 elif [[ "$status" == "200" ]]; then
-  echo "kv/$APP already exists"
+  echo "$KV_MOUNT/$APP already exists"
 else
-  echo "unexpected status $status checking kv/$APP" >&2
+  echo "unexpected status $status checking $KV_MOUNT/$APP" >&2
   exit 1
 fi
 
 echo "Writing policy $APP"
-policy=$(printf 'path "kv/data/%s" {\n    capabilities = ["read"]\n}\n' "$APP")
+policy=$(printf 'path "%s/data/%s" {\n    capabilities = ["read"]\n}\n' "$KV_MOUNT" "$APP")
 jq -n --arg p "$policy" '{policy: $p}' | bao -X PUT "$BAO_ADDR/v1/sys/policies/acl/$APP" -d @- >/dev/null
 
 echo "Writing approle $APP"

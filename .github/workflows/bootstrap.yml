@@ -1,0 +1,31 @@
+name: Bootstrap OpenBao
+
+env:
+  TARGET_IP: 192.168.1.12
+  HOST_PORT: 8200
+  BAO_APP_DIR: /home/runner/apps/${{ github.event.repository.name }}
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    runs-on: [self-hosted]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch OpenBao CA certificate
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new -i /home/runner/.ssh/deploy_key runner@${{ env.TARGET_IP }} \
+            "cat '${{ env.BAO_APP_DIR }}/tls/bao.crt'" > "$RUNNER_TEMP/bao.crt"
+
+      - name: Bootstrap
+        env:
+          BAO_ADDR: https://${{ env.TARGET_IP }}:${{ env.HOST_PORT }}
+          BAO_TOKEN: ${{ secrets.BAO_TOKEN }}
+          GH_TOKEN: ${{ secrets.BAO_GH_TOKEN }}
+          BAO_ADMIN_PASSWORD: ${{ secrets.BAO_ADMIN_PASSWORD }}
+        run: BAO_CACERT="$RUNNER_TEMP/bao.crt" bash scripts/bootstrap.sh "${{ github.repository_owner }}" "${{ github.event.repository.name }}"
