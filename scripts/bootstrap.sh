@@ -21,7 +21,7 @@ for _ in $(seq 1 30); do
 done
 [[ -n "${init_status:-}" ]] || { echo "OpenBao not reachable at $BAO_ADDR" >&2; exit 1; }
 
-initialized=$(jq -er .initialized <<<"$init_status")
+initialized=$(jq -er '.initialized | tostring' <<<"$init_status")
 if [[ "$initialized" == "false" ]]; then
   echo "Checking access to $ORG organisation secrets"
   gh secret list --org "$ORG" >/dev/null
