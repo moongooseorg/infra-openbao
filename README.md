@@ -4,32 +4,12 @@
 Just perform a github build and deploy action
 
 ### Configuration setup
-1. Create a new raft.  Set the recovery keys to 1 and 1.
+1. Setup an org secret BAO_ADMIN_PASSWORD to anything you want
+1. Create a PAT token scoped to org secrets r/w and store as BAO_GH_TOKEN
+1. Run the bootstrap gha
 
-### how to setup a new approle
-## Create the secret path
-create a secret at path `<your app name>`
+### Onboarding an app
+1. Simply pass the github repo name (no domain) to the onboard gha
 
-## Policy creation
-navigate to policies -> acl policies
-create a policy called `<your app name>`
-with the contents
-```
-path "kv/data/<your app name>" {
-    capabilities = ["read"]
-}
-```
-
-## Role creation
-open the terminal (top left corner)
-
-enter the following commands
-```
-write auth/approle/role/<your app name> token_policies=<your app name> token_ttl=20m token_max_ttl=1h secret_id_ttl=0 secret_id_num_uses=0
-
-read auth/approle/role/<your app name>/role-id
-
-write -f auth/approle/role/<your app name>/secret-id
-```
-
-Be sure to copy the secret id to your github secrets immediately
+### Offboarding an app
+1. Sam as onboarding
