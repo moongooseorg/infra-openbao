@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-for tool in curl jq gh; do
-  command -v "$tool" >/dev/null || { echo "$tool is not installed on this runner" >&2; exit 1; }
-done
-
 ORG="${1:?usage: bootstrap.sh <github-org>}"
 REPO="${2:?usage: bootstrap.sh <github-org> <secret-repo>}"
 : "${BAO_ADDR:?BAO_ADDR must be set}"
