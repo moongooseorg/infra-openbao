@@ -22,6 +22,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install jq
+        run: |
+          if ! command -v jq >/dev/null; then
+            case "$(uname -m)" in
+              x86_64) arch=amd64 ;;
+              aarch64|arm64) arch=arm64 ;;
+              *) echo "unsupported architecture $(uname -m)" >&2; exit 1 ;;
+            esac
+            mkdir -p "$RUNNER_TEMP/bin"
+            curl -sSfL -o "$RUNNER_TEMP/bin/jq" "https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-$arch"
+            chmod +x "$RUNNER_TEMP/bin/jq"
+            echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          fi
+
       - name: Fetch OpenBao CA certificate
         run: |
           ssh -o StrictHostKeyChecking=accept-new -i /home/runner/.ssh/deploy_key runner@${{ env.TARGET_IP }} \

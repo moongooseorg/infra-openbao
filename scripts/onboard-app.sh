@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+for tool in curl jq gh; do
+  command -v "$tool" >/dev/null || { echo "$tool is not installed on this runner" >&2; exit 1; }
+done
+
 APP="${1:?usage: onboard-app.sh <app-name> <owner/repo>}"
 REPO="${2:?usage: onboard-app.sh <app-name> <owner/repo>}"
 : "${BAO_ADDR:?BAO_ADDR must be set}"

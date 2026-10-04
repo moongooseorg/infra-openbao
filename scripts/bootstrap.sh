@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+for tool in curl jq gh; do
+  command -v "$tool" >/dev/null || { echo "$tool is not installed on this runner" >&2; exit 1; }
+done
+
 ORG="${1:?usage: bootstrap.sh <github-org>}"
 REPO="${2:?usage: bootstrap.sh <github-org> <secret-repo>}"
 : "${BAO_ADDR:?BAO_ADDR must be set}"
@@ -21,7 +25,8 @@ for _ in $(seq 1 30); do
 done
 [[ -n "${init_status:-}" ]] || { echo "OpenBao not reachable at $BAO_ADDR" >&2; exit 1; }
 
-if [[ "$(jq -r .initialized <<<"$init_status")" == "false" ]]; then
+initialized=$(jq -er .initialized <<<"$init_status")
+if [[ "$initialized" == "false" ]]; then
   echo "Checking access to $ORG organisation secrets"
   gh secret list --org "$ORG" >/dev/null
 
@@ -34,9 +39,12 @@ if [[ "$(jq -r .initialized <<<"$init_status")" == "false" ]]; then
   echo "Storing BAO_TOKEN and BAO_RECOVERY_KEY as $ORG secrets"
   printf '%s' "$BAO_TOKEN" | gh secret set BAO_TOKEN --org "$ORG" --repos "$REPO"
   printf '%s' "$recovery_key" | gh secret set BAO_RECOVERY_KEY --org "$ORG" --repos "$REPO"
-else
+elif [[ "$initialized" == "true" ]]; then
   echo "OpenBao already initialised"
   : "${BAO_TOKEN:?BAO_TOKEN must be set when OpenBao is already initialised}"
+else
+  echo "unexpected init status: $init_status" >&2
+  exit 1
 fi
 
 for _ in $(seq 1 30); do
