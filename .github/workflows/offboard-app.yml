@@ -31,7 +31,7 @@ jobs:
         env:
           BAO_ADDR: https://${{ env.TARGET_IP }}:${{ env.HOST_PORT }}
           BAO_TOKEN: ${{ secrets.BAO_TOKEN }}
-          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+          GH_TOKEN: ${{ secrets.BAO_GH_TOKEN }}
           APP: ${{ inputs.app_name }}
           REPO: ${{ github.repository_owner }}/${{ inputs.app_name }}
         run: BAO_CACERT="$RUNNER_TEMP/bao.crt" bash scripts/offboard-app.sh "$APP" "$REPO"
